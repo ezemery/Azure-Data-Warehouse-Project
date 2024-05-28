@@ -99,7 +99,7 @@ GO
 
 
 -- create dimension for date 
-CREATE EXTERNAL TABLE dimDate
+CREATE EXTERNAL TABLE dim_date
 (
   date_key integer,
   date date,
@@ -109,12 +109,12 @@ CREATE EXTERNAL TABLE dimDate
   day smallint,
   week smallint
 )WITH (
-    LOCATION    = 'dimDate',
+    LOCATION    = 'dim_date',
     DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
     FILE_FORMAT = [SynapseDelimitedTextFormat]
 )
 
-INSERT INTO dimDate ( [date], year, quarter, month, day, week)
+INSERT INTO dim_date ( [date], year, quarter, month, day, week)
 SELECT 
        [date]                                    AS [date],
        year( [date])                             AS year,
@@ -124,64 +124,64 @@ SELECT
        DATEPART(week,[date])                     AS week
 FROM dbo.staging_payment 
 
--- create dimension for date
+-- -- create dimension for date
 
-IF OBJECT_ID('dbo.dim_date') IS NOT NULL
-BEGIN
-    DROP EXTERNAL TABLE [dbo].[dim_date];
-END
+-- IF OBJECT_ID('dbo.dim_date') IS NOT NULL
+-- BEGIN
+--     DROP EXTERNAL TABLE [dbo].[dim_date];
+-- END
 
-CREATE EXTERNAL TABLE dbo.dim_date (
-    statsDate DATE,
-    statsDayNo INT,
-    statsDay NVARCHAR(10),
-    statsMonth NVARCHAR(10),
-    statsShortMonth NVARCHAR(3),
-    statsCalMonthNo INT,
-    statsCalMonthLabel NVARCHAR(20),
-    statsCalYear INT,
-    statsCalYearLabel NVARCHAR(10),
-    statsISOWeek INT
-)
-WITH (
-    LOCATION    = 'dim_date',
-    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
-    FILE_FORMAT = [SynapseDelimitedTextFormat]
-)
+-- CREATE EXTERNAL TABLE dbo.dim_date (
+--     statsDate DATE,
+--     statsDayNo INT,
+--     statsDay NVARCHAR(10),
+--     statsMonth NVARCHAR(10),
+--     statsShortMonth NVARCHAR(3),
+--     statsCalMonthNo INT,
+--     statsCalMonthLabel NVARCHAR(20),
+--     statsCalYear INT,
+--     statsCalYearLabel NVARCHAR(10),
+--     statsISOWeek INT
+-- )
+-- WITH (
+--     LOCATION    = 'dim_date',
+--     DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+--     FILE_FORMAT = [SynapseDelimitedTextFormat]
+-- )
 
-DECLARE @CurrentDate DATE = '2000-01-01';
-DECLARE @EndDate DATE = '2099-12-31';
+-- DECLARE @CurrentDate DATE = '2000-01-01';
+-- DECLARE @EndDate DATE = '2099-12-31';
 
-WHILE @CurrentDate <= @EndDate
-INSERT INTO dbo.dim_date (
-    statsDate, 
-    statsDayNo, 
-    statsDay, 
-    statsMonth, 
-    statsShortMonth, 
-    statsCalMonthNo, 
-    statsCalMonthLabel, 
-    statsCalYear, 
-    statsCalYearLabel, 
-    statsISOWeek
-)
-SELECT 
-    @CurrentDate AS statsDate,
-    DATEPART(DAY, @CurrentDate) AS statsDayNo,
-    DATENAME(WEEKDAY, @CurrentDate) AS statsDay,
-    DATENAME(MONTH, @CurrentDate) AS statsMonth,
-    LEFT(DATENAME(MONTH, @CurrentDate), 3) AS statsShortMonth,
-    DATEPART(MONTH, @CurrentDate) AS statsCalMonthNo,
-    FORMAT(@CurrentDate, 'yyyyMM') AS statsCalMonthLabel,
-    DATEPART(YEAR, @CurrentDate) AS statsCalYear,
-    CAST(DATEPART(YEAR, @CurrentDate) AS NVARCHAR(10)) AS statsCalYearLabel,
-    DATEPART(ISO_WEEK, @CurrentDate) AS statsISOWeek;
+-- WHILE @CurrentDate <= @EndDate
+-- INSERT INTO dbo.dim_date (
+--     statsDate, 
+--     statsDayNo, 
+--     statsDay, 
+--     statsMonth, 
+--     statsShortMonth, 
+--     statsCalMonthNo, 
+--     statsCalMonthLabel, 
+--     statsCalYear, 
+--     statsCalYearLabel, 
+--     statsISOWeek
+-- )
+-- SELECT 
+--     @CurrentDate AS statsDate,
+--     DATEPART(DAY, @CurrentDate) AS statsDayNo,
+--     DATENAME(WEEKDAY, @CurrentDate) AS statsDay,
+--     DATENAME(MONTH, @CurrentDate) AS statsMonth,
+--     LEFT(DATENAME(MONTH, @CurrentDate), 3) AS statsShortMonth,
+--     DATEPART(MONTH, @CurrentDate) AS statsCalMonthNo,
+--     FORMAT(@CurrentDate, 'yyyyMM') AS statsCalMonthLabel,
+--     DATEPART(YEAR, @CurrentDate) AS statsCalYear,
+--     CAST(DATEPART(YEAR, @CurrentDate) AS NVARCHAR(10)) AS statsCalYearLabel,
+--     DATEPART(ISO_WEEK, @CurrentDate) AS statsISOWeek;
 
-SET @CurrentDate = DATEADD(DAY, 1, @CurrentDate);
+-- SET @CurrentDate = DATEADD(DAY, 1, @CurrentDate);
 
 
-SELECT TOP 100 * FROM dbo.dim_date
-GO
+-- SELECT TOP 100 * FROM dbo.dim_date
+-- GO
 
 -- create fact table for payment
 
