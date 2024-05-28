@@ -1,0 +1,238 @@
+IF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseDelimitedTextFormat') 
+	CREATE EXTERNAL FILE FORMAT [SynapseDelimitedTextFormat] 
+	WITH ( FORMAT_TYPE = DELIMITEDTEXT ,
+	       FORMAT_OPTIONS (
+			 FIELD_TERMINATOR = ',',
+			 USE_TYPE_DEFAULT = FALSE
+			))
+GO
+
+IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'udacitydemoc2_udacitydemoc2_dfs_core_windows_net') 
+	CREATE EXTERNAL DATA SOURCE [udacitydemoc2_udacitydemoc2_dfs_core_windows_net] 
+	WITH (
+		LOCATION = 'abfss://udacitydemoc2@udacitydemoc2.dfs.core.windows.net' 
+	)
+GO
+
+-- create dimension for trip
+
+IF OBJECT_ID('dbo.dim_trip') IS NOT NULL
+BEGIN
+  DROP EXTERNAL TABLE [dbo].[dim_trip];
+END
+
+CREATE EXTERNAL TABLE dbo.dim_trip
+WITH (
+    LOCATION    = 'dim_trip',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+	FILE_FORMAT = [SynapseDelimitedTextFormat]
+)  
+AS
+    SELECT 
+            [trip_id], 
+            [rideable_type],
+            TRY_CONVERT(DATETIME2(7), start_at) as start_at,
+            TRY_CONVERT(DATETIME2(7), end_at) as end_at,
+            [start_station_id],
+            [end_station_id]
+            
+    FROM dbo.staging_trip;
+GO
+
+SELECT TOP 100 * FROM dbo.dim_trip
+GO
+
+-- create dimension for rider
+
+IF OBJECT_ID('dbo.dim_rider') IS NOT NULL
+BEGIN
+  DROP EXTERNAL TABLE [dbo].[dim_rider];
+END
+
+CREATE EXTERNAL TABLE dbo.dim_rider
+WITH (
+    LOCATION    = 'dim_rider',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+	FILE_FORMAT = [SynapseDelimitedTextFormat]
+)  
+AS
+SELECT 
+        [rider_id], 
+        [first], 
+        [last], 
+        [address],
+        TRY_CONVERT(DATE, birthday) as birthday,   
+        TRY_CONVERT(DATE, account_start_date) as account_start_date, 
+        TRY_CONVERT(DATE, account_end_date) as account_end_date,
+        [is_member]
+ FROM dbo.staging_rider;
+GO
+
+SELECT TOP 100 * FROM dbo.dim_rider
+GO
+
+-- create dimension for station
+
+IF OBJECT_ID('dbo.dim_station') IS NOT NULL
+BEGIN
+  DROP EXTERNAL TABLE [dbo].[dim_station];
+END
+
+CREATE EXTERNAL TABLE dbo.dim_station
+WITH (
+    LOCATION    = 'dim_station',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+	FILE_FORMAT = [SynapseDelimitedTextFormat]
+)  
+AS
+SELECT 
+        [station_id],
+        [name],
+        TRY_CONVERT(FLOAT, latitude) as latitude,
+        TRY_CONVERT(FLOAT, longitude) as longitude
+
+ FROM dbo.staging_station;
+GO
+
+SELECT TOP 100 * FROM dbo.dim_station
+GO
+
+
+-- create dimension for date 
+CREATE EXTERNAL TABLE dimDate
+(
+  date_key integer,
+  date date,
+  year smallint,
+  quarter smallint,
+  month smallint,
+  day smallint,
+  week smallint
+)WITH (
+    LOCATION    = 'dimDate',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+    FILE_FORMAT = [SynapseDelimitedTextFormat]
+)
+
+INSERT INTO dimDate ( [date], year, quarter, month, day, week)
+SELECT 
+       [date]                                    AS [date],
+       year( [date])                             AS year,
+       DATEPART(QUARTER,[date])                  AS quarter,
+       DATEPART(month,[date])                    AS month,
+       DATEPART(day,[date])                      AS day,
+       DATEPART(week,[date])                     AS week
+FROM dbo.staging_payment 
+
+-- create dimension for date
+
+IF OBJECT_ID('dbo.dim_date') IS NOT NULL
+BEGIN
+    DROP EXTERNAL TABLE [dbo].[dim_date];
+END
+
+CREATE EXTERNAL TABLE dbo.dim_date (
+    statsDate DATE,
+    statsDayNo INT,
+    statsDay NVARCHAR(10),
+    statsMonth NVARCHAR(10),
+    statsShortMonth NVARCHAR(3),
+    statsCalMonthNo INT,
+    statsCalMonthLabel NVARCHAR(20),
+    statsCalYear INT,
+    statsCalYearLabel NVARCHAR(10),
+    statsISOWeek INT
+)
+WITH (
+    LOCATION    = 'dim_date',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+    FILE_FORMAT = [SynapseDelimitedTextFormat]
+)
+
+DECLARE @CurrentDate DATE = '2000-01-01';
+DECLARE @EndDate DATE = '2099-12-31';
+
+WHILE @CurrentDate <= @EndDate
+INSERT INTO dbo.dim_date (
+    statsDate, 
+    statsDayNo, 
+    statsDay, 
+    statsMonth, 
+    statsShortMonth, 
+    statsCalMonthNo, 
+    statsCalMonthLabel, 
+    statsCalYear, 
+    statsCalYearLabel, 
+    statsISOWeek
+)
+SELECT 
+    @CurrentDate AS statsDate,
+    DATEPART(DAY, @CurrentDate) AS statsDayNo,
+    DATENAME(WEEKDAY, @CurrentDate) AS statsDay,
+    DATENAME(MONTH, @CurrentDate) AS statsMonth,
+    LEFT(DATENAME(MONTH, @CurrentDate), 3) AS statsShortMonth,
+    DATEPART(MONTH, @CurrentDate) AS statsCalMonthNo,
+    FORMAT(@CurrentDate, 'yyyyMM') AS statsCalMonthLabel,
+    DATEPART(YEAR, @CurrentDate) AS statsCalYear,
+    CAST(DATEPART(YEAR, @CurrentDate) AS NVARCHAR(10)) AS statsCalYearLabel,
+    DATEPART(ISO_WEEK, @CurrentDate) AS statsISOWeek;
+
+SET @CurrentDate = DATEADD(DAY, 1, @CurrentDate);
+
+
+SELECT TOP 100 * FROM dbo.dim_date
+GO
+
+-- create fact table for payment
+
+IF OBJECT_ID('dbo.fact_payment') IS NOT NULL
+BEGIN
+  DROP EXTERNAL TABLE [dbo].[fact_payment];
+END
+
+CREATE EXTERNAL TABLE dbo.fact_payment
+WITH (
+    LOCATION    = 'fact_payment',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+	FILE_FORMAT = [SynapseDelimitedTextFormat]
+)  
+AS
+SELECT 
+        rider_id, 
+        payment_id, 
+        TRY_CONVERT(DATE, date) as date,
+        SUM(TRY_CONVERT(MONEY, amount)) as amount
+FROM dbo.staging_payment
+GROUP BY rider_id, payment_id, date;
+GO
+
+SELECT TOP 100 * FROM dbo.fact_payment
+GO
+
+-- create fact table for trips
+
+IF OBJECT_ID('dbo.fact_trips') IS NOT NULL
+BEGIN
+  DROP EXTERNAL TABLE [dbo].[fact_trips];
+END
+
+CREATE EXTERNAL TABLE dbo.fact_trips
+WITH (
+    LOCATION    = 'fact_trips',
+    DATA_SOURCE = [udacitydemoc2_udacitydemoc2_dfs_core_windows_net],
+	FILE_FORMAT = [SynapseDelimitedTextFormat]
+)  
+AS
+SELECT 
+        rider_id, 
+        trip_id,
+        TRY_CONVERT(DATE, pa.date) as date,
+        SUM(DATEDIFF(SECOND,TRY_CONVERT(DATETIME2(7), start_at), TRY_CONVERT(DATETIME2(7), end_at))) as time
+FROM dbo.staging_trip
+JOIN dbo.staging_payment as pa ON rider_id = pa.rider_id
+GROUP BY rider_id, trip_id, date;
+GO
+
+
+SELECT TOP 100 * FROM dbo.fact_trips
+GO
