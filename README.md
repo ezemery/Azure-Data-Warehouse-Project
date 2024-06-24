@@ -4,7 +4,7 @@ Divvy is a bike sharing program in Chicago, Illinois USA that allows riders to p
 
 Since the data from Divvy are anonymous, we have created fake rider and account profiles along with fake payment data to go along with the data from Divvy. The dataset looks like this:
 
-![divvy erp diagram](files/divvy-erd.png)
+![divvy erp diagram](azure_synapse_analytics_files/divvy-erd.png)
 
 ### The business outcomes you are designing for are as follows:
 
@@ -25,11 +25,11 @@ Since the data from Divvy are anonymous, we have created fake rider and account 
 ### The goal of this project is to develop a data warehouse solution using Azure Synapse Analytics.
 
 * Design a star schema based on the business outcomes;
-![divvy star schema](files/divvy_star_schema.png)
+![divvy star schema](azure_synapse_analytics_files/divvy_star_schema.png)
 * Import the data into Synapse;
-![import data into azure blob storage](files/azure_blog_storage_for_tables.png)
+![import data into azure blob storage](azure_synapse_analytics_files/azure_blog_storage_for_tables.png)
 * Transform the data into the star schema;
-![Generating the facts and dimensions for the data](files/facts_and_dimensions.png)
+![Generating the facts and dimensions for the data](azure_synapse_analytics_files/facts_and_dimensions.png)
 
 and finally, view the reports from Analytics.
 
